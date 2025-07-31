@@ -26,7 +26,21 @@
             <artifactId>spring-boot-starter-data-jpa</artifactId>
         </dependency>
 
-        <!-- Demo and Development only, do Not use h2 in production -->
+        <!-- JUnit, Mockito, Hamcrest -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+            <exclusions>
+                <!-- Remove legacy JUnit 4 -->
+                <exclusion>
+                    <groupId>org.junit.vintage</groupId>
+                    <artifactId>junit-vintage-engine</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Demo and Development database, do Not use h2 in production -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
