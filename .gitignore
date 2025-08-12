@@ -5,6 +5,9 @@
 *.ipr
 out/
 
+# vscode/cursor
+.vscode/
+
 # Maven
 target/
 pom.xml.tag
