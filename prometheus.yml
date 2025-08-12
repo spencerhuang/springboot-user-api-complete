@@ -1,0 +1,95 @@
+# Prometheus configuration for Spring Boot User Management API
+# Save this as prometheus.yml and start Prometheus with: ./prometheus --config.file=prometheus.yml
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alerting rules
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# Alert manager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+#rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# Scrape configuration for Spring Boot application
+scrape_configs:
+  # Spring Boot application metrics
+  - job_name: 'spring-boot-user-api'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/actuator/prometheus'
+    scrape_interval: 5s
+    scrape_timeout: 10s
+    
+    # Relabeling rules for better metric organization
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        regex: '([^:]+)(?::\d+)?'
+        replacement: '${1}'
+      - source_labels: [__address__]
+        target_label: port
+        regex: ':(\d+)'
+        replacement: '${1}'
+      - source_labels: [__address__]
+        target_label: host
+        regex: '([^:]+):\d+'
+        replacement: '${1}'
+    
+    # Metric relabeling for Spring Boot specific metrics
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'jvm_(.+)'
+        target_label: metric_type
+        replacement: 'jvm'
+      - source_labels: [__name__]
+        regex: 'process_(.+)'
+        target_label: metric_type
+        replacement: 'process'
+      - source_labels: [__name__]
+        regex: 'http_(.+)'
+        target_label: metric_type
+        replacement: 'http'
+      - source_labels: [__name__]
+        regex: 'user_(.+)'
+        target_label: metric_type
+        replacement: 'business'
+      - source_labels: [__name__]
+        regex: 'auth_(.+)'
+        target_label: metric_type
+        replacement: 'authentication'
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 15s
+
+# Optional: Additional targets for monitoring infrastructure
+# - job_name: 'node-exporter'
+#   static_configs:
+#     - targets: ['localhost:9100']
+#   scrape_interval: 15s
+
+# Optional: Database monitoring (if using external database)
+# - job_name: 'postgres-exporter'
+#   static_configs:
+#     - targets: ['localhost:9187']
+#   scrape_interval: 15s
+
+# Optional: JVM monitoring with JMX exporter
+# - job_name: 'jmx-exporter'
+#   static_configs:
+#     - targets: ['localhost:9404']
+#   scrape_interval: 15s
