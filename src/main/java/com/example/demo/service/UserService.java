@@ -37,7 +37,6 @@ public class UserService {
         Timer.Sample timer = metricsService.startDatabaseQueryTimer();
         try {
             Optional<User> result = userRepository.findById(id);
-            metricsService.recordApiCall(result.isPresent());
             return result;
         } finally {
             metricsService.stopDatabaseQueryTimer(timer);
@@ -54,7 +53,6 @@ public class UserService {
         Timer.Sample timer = metricsService.startDatabaseQueryTimer();
         try {
             Optional<User> result = userRepository.findByUsername(username);
-            metricsService.recordApiCall(result.isPresent());
             return result;
         } finally {
             metricsService.stopDatabaseQueryTimer(timer);
@@ -71,7 +69,6 @@ public class UserService {
         Timer.Sample timer = metricsService.startDatabaseQueryTimer();
         try {
             Optional<User> result = userRepository.findByEmail(email);
-            metricsService.recordApiCall(result.isPresent());
             return result;
         } finally {
             metricsService.stopDatabaseQueryTimer(timer);
@@ -88,7 +85,6 @@ public class UserService {
         Timer.Sample timer = metricsService.startDatabaseQueryTimer();
         try {
             Page<User> result = userRepository.findAll(pageable);
-            metricsService.recordApiCall(true);
             metricsService.recordBusinessMetric("users_listed", result.getTotalElements());
             return result;
         } finally {
@@ -107,7 +103,6 @@ public class UserService {
         try {
             Page<User> result = userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(
                 query, query, pageable);
-            metricsService.recordApiCall(true);
             metricsService.recordBusinessMetric("users_searched", result.getTotalElements(), "query", query);
             return result;
         } finally {
@@ -126,19 +121,16 @@ public class UserService {
         try {
             // Check if user with same username or email already exists
             if (userRepository.existsByUsername(user.getUsername())) {
-                metricsService.recordApiCall(false);
                 throw new RuntimeException("Username already exists: " + user.getUsername());
             }
             
             if (userRepository.existsByEmail(user.getEmail())) {
-                metricsService.recordApiCall(false);
                 throw new RuntimeException("Email already exists: " + user.getEmail());
             }
             
             User savedUser = userRepository.save(user);
             logger.info("Created user: {} with ID: {}", savedUser.getUsername(), savedUser.getId());
             
-            metricsService.recordApiCall(true);
             metricsService.recordBusinessMetric("user_created", 1.0, "username", savedUser.getUsername());
             
             // Update user counts in metrics
@@ -172,12 +164,10 @@ public class UserService {
                 User updatedUser = userRepository.save(user);
                 logger.info("Updated user: {} with ID: {}", updatedUser.getUsername(), updatedUser.getId());
                 
-                metricsService.recordApiCall(true);
                 metricsService.recordBusinessMetric("user_updated", 1.0, "username", updatedUser.getUsername());
                 
                 return updatedUser;
             } else {
-                metricsService.recordApiCall(false);
                 throw new RuntimeException("User not found with ID: " + id);
             }
         } finally {
@@ -200,14 +190,12 @@ public class UserService {
                 userRepository.deleteById(id);
                 logger.info("Deleted user: {} with ID: {}", username, id);
                 
-                metricsService.recordApiCall(true);
                 metricsService.recordBusinessMetric("user_deleted", 1.0, "username", username);
                 
                 // Update user counts in metrics
                 long totalUsers = userRepository.count();
                 metricsService.setTotalUsers((int) totalUsers);
             } else {
-                metricsService.recordApiCall(false);
                 throw new RuntimeException("User not found with ID: " + id);
             }
         } finally {
@@ -226,7 +214,6 @@ public class UserService {
         Timer.Sample timer = metricsService.startDatabaseQueryTimer();
         try {
             long count = userRepository.count();
-            metricsService.recordApiCall(true);
             metricsService.recordBusinessMetric("user_count_retrieved", count);
             return count;
         } finally {
@@ -246,7 +233,6 @@ public class UserService {
         try {
             // This would need a custom query in the repository
             long count = userRepository.count(); // Simplified for demo
-            metricsService.recordApiCall(true);
             metricsService.recordBusinessMetric("active_user_count_retrieved", count);
             return count;
         } finally {
