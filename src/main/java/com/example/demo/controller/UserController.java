@@ -1,7 +1,6 @@
 package com.example.demo.controller;
 
 import com.example.demo.entity.User;
-import com.example.demo.service.MetricsService;
 import com.example.demo.service.UserService;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.Counter;
@@ -14,7 +13,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -35,9 +33,6 @@ public class UserController {
 
     @Autowired
     private UserService userService;
-    
-    @Autowired
-    private MetricsService metricsService;
     
     @Autowired
     private MeterRegistry meterRegistry;
@@ -78,15 +73,9 @@ public class UserController {
         @Parameter(description = "Number of items per page", example = "10")
         @RequestParam(defaultValue = "10") int size,
         @Parameter(description = "Sorting criteria (field,direction)", example = "id,asc")
-        @RequestParam(defaultValue = "id,asc") String[] sort,
-        HttpServletRequest request
+        @RequestParam(defaultValue = "id,asc") String[] sort
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             Sort.Direction direction = sort[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
             PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, sort[0]));
             Page<User> pageResult = userService.getAllUsers(pageRequest);
@@ -99,13 +88,8 @@ public class UserController {
             response.put("hasNext", pageResult.hasNext());
             response.put("hasPrevious", pageResult.hasPrevious());
 
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
-
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to retrieve users", "message", e.getMessage()));
         }
@@ -125,29 +109,17 @@ public class UserController {
     })
     public ResponseEntity<?> getUserById(
         @Parameter(description = "User ID", example = "1")
-        @PathVariable Long id,
-        HttpServletRequest request
+        @PathVariable Long id
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             Optional<User> user = userService.getUserById(id);
             if (user.isPresent()) {
-                // Record response size
-                String responseJson = user.get().toString();
-                metricsService.recordResponseSize(responseJson.getBytes().length);
-                
                 return ResponseEntity.ok(user.get());
             } else {
-                metricsService.recordApiCall(false);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "User not found", "id", id));
             }
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to retrieve user", "message", e.getMessage()));
         }
@@ -168,21 +140,11 @@ public class UserController {
     })
     public ResponseEntity<?> createUser(
         @Parameter(description = "User object to create", required = true)
-        @Valid @RequestBody User user,
-        HttpServletRequest request
+        @Valid @RequestBody User user
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             User savedUser = userService.createUser(user);
             userCreatedCounter.increment();
-            
-            // Record response size
-            String responseJson = savedUser.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
         } catch (RuntimeException e) {
@@ -193,7 +155,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to create user", "message", e.getMessage()));
         }
@@ -216,21 +177,11 @@ public class UserController {
         @Parameter(description = "User ID", example = "1")
         @PathVariable Long id,
         @Parameter(description = "Updated user object", required = true)
-        @Valid @RequestBody User userDetails,
-        HttpServletRequest request
+        @Valid @RequestBody User userDetails
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             User updatedUser = userService.updateUser(id, userDetails);
             userUpdatedCounter.increment();
-            
-            // Record response size
-            String responseJson = updatedUser.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
             
             return ResponseEntity.ok(updatedUser);
         } catch (RuntimeException e) {
@@ -241,7 +192,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to update user", "message", e.getMessage()));
         }
@@ -260,23 +210,13 @@ public class UserController {
     })
     public ResponseEntity<?> deleteUser(
         @Parameter(description = "User ID", example = "1")
-        @PathVariable Long id,
-        HttpServletRequest request
+        @PathVariable Long id
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             userService.deleteUser(id);
             userDeletedCounter.increment();
             
             Map<String, Object> response = Map.of("message", "User deleted successfully", "id", id);
-            
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
             
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
@@ -287,7 +227,6 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to delete user", "message", e.getMessage()));
         }
@@ -311,15 +250,9 @@ public class UserController {
         @Parameter(description = "Page number (0-based)", example = "0")
         @RequestParam(defaultValue = "0") int page,
         @Parameter(description = "Number of items per page", example = "10")
-        @RequestParam(defaultValue = "10") int size,
-        HttpServletRequest request
+        @RequestParam(defaultValue = "10") int size
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             PageRequest pageRequest = PageRequest.of(page, size);
             Page<User> pageResult = userService.searchUsers(query, pageRequest);
 
@@ -330,13 +263,8 @@ public class UserController {
             response.put("totalPages", pageResult.getTotalPages());
             response.put("searchQuery", query);
 
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
-
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to search users", "message", e.getMessage()));
         }
@@ -352,13 +280,8 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved user counts"),
         @ApiResponse(responseCode = "401", description = "Unauthorized - JWT token required")
     })
-    public ResponseEntity<?> getUserCounts(HttpServletRequest request) {
+    public ResponseEntity<?> getUserCounts() {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             long totalUsers = userService.getUserCount();
             long activeUsers = userService.getActiveUserCount();
             
@@ -367,13 +290,8 @@ public class UserController {
             response.put("activeUsers", activeUsers);
             response.put("cached", true);
             
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
-            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to get user counts", "message", e.getMessage()));
         }
@@ -389,24 +307,14 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "Caches cleared successfully"),
         @ApiResponse(responseCode = "401", description = "Unauthorized - JWT token required")
     })
-    public ResponseEntity<?> clearUserCaches(HttpServletRequest request) {
+    public ResponseEntity<?> clearUserCaches() {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             userService.clearAllCaches();
             
             Map<String, Object> response = Map.of("message", "User caches cleared successfully");
             
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
-            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to clear caches", "message", e.getMessage()));
         }

@@ -1,7 +1,6 @@
 package com.example.demo.controller;
 
 import com.example.demo.service.AuthService;
-import com.example.demo.service.MetricsService;
 import io.micrometer.core.annotation.Timed;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -13,7 +12,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -31,9 +29,6 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
-    
-    @Autowired
-    private MetricsService metricsService;
     
     @Autowired
     private MeterRegistry meterRegistry;
@@ -70,34 +65,22 @@ public class AuthController {
     })
     public ResponseEntity<?> login(
         @Parameter(description = "Username for authentication", example = "john_doe", required = true)
-        @RequestParam @NotBlank(message = "Username is required") String username,
-        HttpServletRequest request
+        @RequestParam @NotBlank(message = "Username is required") String username
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             loginAttemptsCounter.increment();
             
             Map<String, Object> response = authService.authenticateUser(username);
             loginSuccessCounter.increment();
             
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
-            
             return ResponseEntity.ok(response);
             
         } catch (RuntimeException e) {
             loginFailureCounter.increment();
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(Map.of("error", e.getMessage()));
         } catch (Exception e) {
             loginFailureCounter.increment();
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Login failed", "message", e.getMessage()));
         }
@@ -117,17 +100,10 @@ public class AuthController {
     })
     public ResponseEntity<?> validateToken(
         @Parameter(description = "JWT token to validate", required = true)
-        @RequestHeader("Authorization") String authorization,
-        HttpServletRequest request
+        @RequestHeader("Authorization") String authorization
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             if (authorization == null || !authorization.startsWith("Bearer ")) {
-                metricsService.recordApiCall(false);
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(Map.of("error", "Invalid authorization header format. Use 'Bearer <token>'"));
             }
@@ -140,19 +116,13 @@ public class AuthController {
                 response.setValid(true);
                 response.setMessage("Token is valid");
                 
-                // Record response size
-                String responseJson = response.toString();
-                metricsService.recordResponseSize(responseJson.getBytes().length);
-                
                 return ResponseEntity.ok(response);
             } else {
-                metricsService.recordApiCall(false);
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                         .body(Map.of("error", "Invalid or expired token"));
             }
             
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Token validation failed", "message", e.getMessage()));
         }
@@ -171,26 +141,15 @@ public class AuthController {
     })
     public ResponseEntity<?> logout(
         @Parameter(description = "Username to logout", required = true)
-        @RequestParam String username,
-        HttpServletRequest request
+        @RequestParam String username
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             authService.logoutUser(username);
             
             Map<String, Object> response = Map.of("message", "User logged out successfully", "username", username);
             
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
-            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Logout failed", "message", e.getMessage()));
         }
@@ -208,24 +167,13 @@ public class AuthController {
     })
     public ResponseEntity<?> getUserSession(
         @Parameter(description = "Username", example = "john_doe")
-        @PathVariable String username,
-        HttpServletRequest request
+        @PathVariable String username
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             Map<String, Object> session = authService.getUserSession(username);
-            
-            // Record response size
-            String responseJson = session.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
             
             return ResponseEntity.ok(session);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to get session", "message", e.getMessage()));
         }
@@ -243,24 +191,13 @@ public class AuthController {
     })
     public ResponseEntity<?> refreshUserSession(
         @Parameter(description = "Username", example = "john_doe")
-        @PathVariable String username,
-        HttpServletRequest request
+        @PathVariable String username
     ) {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             Map<String, Object> session = authService.refreshUserSession(username);
-            
-            // Record response size
-            String responseJson = session.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
             
             return ResponseEntity.ok(session);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to refresh session", "message", e.getMessage()));
         }
@@ -274,26 +211,16 @@ public class AuthController {
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Service is healthy")
     })
-    public ResponseEntity<?> health(HttpServletRequest request) {
+    public ResponseEntity<?> health() {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             Map<String, Object> response = Map.of(
                 "status", "UP",
                 "service", "Authentication Service",
                 "timestamp", System.currentTimeMillis()
             );
             
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
-            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Health check failed", "message", e.getMessage()));
         }
@@ -309,24 +236,14 @@ public class AuthController {
         @ApiResponse(responseCode = "200", description = "Caches cleared successfully"),
         @ApiResponse(responseCode = "401", description = "Unauthorized")
     })
-    public ResponseEntity<?> clearAuthCaches(HttpServletRequest request) {
+    public ResponseEntity<?> clearAuthCaches() {
         try {
-            // Record request size
-            if (request.getContentLength() > 0) {
-                metricsService.recordRequestSize(request.getContentLength());
-            }
-            
             authService.clearAllAuthCaches();
             
             Map<String, Object> response = Map.of("message", "Authentication caches cleared successfully");
             
-            // Record response size
-            String responseJson = response.toString();
-            metricsService.recordResponseSize(responseJson.getBytes().length);
-            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            metricsService.recordApiCall(false);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of("error", "Failed to clear caches", "message", e.getMessage()));
         }

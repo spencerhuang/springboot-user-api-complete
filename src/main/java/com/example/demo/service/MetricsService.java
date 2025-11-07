@@ -106,20 +106,6 @@ public class MetricsService {
     }
     
     /**
-     * Record API response time
-     */
-    public Timer.Sample startApiResponseTimer() {
-        return Timer.start(meterRegistry);
-    }
-    
-    /**
-     * Stop API response timer and record the time
-     */
-    public void stopApiResponseTimer(Timer.Sample sample) {
-        sample.stop(apiResponseTime);
-    }
-    
-    /**
      * Record database query time
      */
     public Timer.Sample startDatabaseQueryTimer() {
@@ -174,5 +160,19 @@ public class MetricsService {
             activeUsers.get(),
             totalUsers.get()
         );
+    }
+    
+    /**
+     * Get MeterRegistry for use in interceptors
+     */
+    public MeterRegistry getMeterRegistry() {
+        return meterRegistry;
+    }
+    
+    /**
+     * Get API response timer for use in interceptors
+     */
+    public Timer getApiResponseTimer() {
+        return apiResponseTime;
     }
 }

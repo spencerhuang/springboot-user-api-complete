@@ -2,7 +2,6 @@ package com.example.demo.service;
 
 import com.example.demo.security.JwtUtil;
 import io.micrometer.core.annotation.Timed;
-import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +28,6 @@ public class AuthService {
     public boolean validateToken(String token) {
         logger.debug("Validating JWT token");
         
-        Timer.Sample timer = metricsService.startApiResponseTimer();
         try {
             // Extract username and validate token
             String username = jwtUtil.extractUsername(token);
@@ -37,22 +35,17 @@ public class AuthService {
             
             if (isValid) {
                 logger.debug("Token validation successful for user: {}", username);
-                metricsService.recordApiCall(true);
                 metricsService.recordBusinessMetric("token_validated", 1.0, "username", username);
             } else {
                 logger.debug("Token validation failed");
-                metricsService.recordApiCall(false);
                 metricsService.recordBusinessMetric("token_validation_failed", 1.0);
             }
             
             return isValid;
         } catch (Exception e) {
             logger.warn("Token validation error: {}", e.getMessage());
-            metricsService.recordApiCall(false);
             metricsService.recordBusinessMetric("token_validation_error", 1.0, "error", e.getClass().getSimpleName());
             return false;
-        } finally {
-            metricsService.stopApiResponseTimer(timer);
         }
     }
 
@@ -63,13 +56,11 @@ public class AuthService {
     public Map<String, Object> authenticateUser(String username) {
         logger.debug("Authenticating user: {}", username);
         
-        Timer.Sample timer = metricsService.startApiResponseTimer();
         try {
             // In a real application, you would validate credentials here
             // For demo purposes, we'll accept any non-empty username
             
             if (username == null || username.trim().isEmpty()) {
-                metricsService.recordApiCall(false);
                 metricsService.recordBusinessMetric("authentication_failed", 1.0, "reason", "empty_username");
                 throw new RuntimeException("Username cannot be empty");
             }
@@ -86,12 +77,11 @@ public class AuthService {
             
             logger.info("User authenticated successfully: {}", username);
             
-            metricsService.recordApiCall(true);
             metricsService.recordBusinessMetric("user_authenticated", 1.0, "username", username);
             
             return response;
-        } finally {
-            metricsService.stopApiResponseTimer(timer);
+        } catch (RuntimeException e) {
+            throw e;
         }
     }
 
@@ -102,20 +92,14 @@ public class AuthService {
     public Map<String, Object> getUserSession(String username) {
         logger.debug("Getting session info for user: {}", username);
         
-        Timer.Sample timer = metricsService.startApiResponseTimer();
-        try {
-            Map<String, Object> session = new HashMap<>();
-            session.put("username", username);
-            session.put("lastAccess", System.currentTimeMillis());
-            session.put("active", true);
-            
-            metricsService.recordApiCall(true);
-            metricsService.recordBusinessMetric("session_retrieved", 1.0, "username", username);
-            
-            return session;
-        } finally {
-            metricsService.stopApiResponseTimer(timer);
-        }
+        Map<String, Object> session = new HashMap<>();
+        session.put("username", username);
+        session.put("lastAccess", System.currentTimeMillis());
+        session.put("active", true);
+        
+        metricsService.recordBusinessMetric("session_retrieved", 1.0, "username", username);
+        
+        return session;
     }
 
     /**
@@ -125,13 +109,7 @@ public class AuthService {
     public void logoutUser(String username) {
         logger.info("User logged out: {}", username);
         
-        Timer.Sample timer = metricsService.startApiResponseTimer();
-        try {
-            metricsService.recordApiCall(true);
-            metricsService.recordBusinessMetric("user_logged_out", 1.0, "username", username);
-        } finally {
-            metricsService.stopApiResponseTimer(timer);
-        }
+        metricsService.recordBusinessMetric("user_logged_out", 1.0, "username", username);
     }
 
     /**
@@ -141,13 +119,7 @@ public class AuthService {
     public void clearAllAuthCaches() {
         logger.info("Clearing all authentication caches");
         
-        Timer.Sample timer = metricsService.startApiResponseTimer();
-        try {
-            metricsService.recordApiCall(true);
-            metricsService.recordBusinessMetric("auth_cache_cleared", 1.0, "cache_type", "all");
-        } finally {
-            metricsService.stopApiResponseTimer(timer);
-        }
+        metricsService.recordBusinessMetric("auth_cache_cleared", 1.0, "cache_type", "all");
     }
 
     /**
@@ -157,22 +129,16 @@ public class AuthService {
     public Map<String, Object> refreshUserSession(String username) {
         logger.debug("Refreshing session for user: {}", username);
         
-        Timer.Sample timer = metricsService.startApiResponseTimer();
-        try {
-            // Create new session (no caching)
-            Map<String, Object> newSession = new HashMap<>();
-            newSession.put("username", username);
-            newSession.put("lastAccess", System.currentTimeMillis());
-            newSession.put("active", true);
-            newSession.put("refreshed", true);
-            
-            metricsService.recordApiCall(true);
-            metricsService.recordBusinessMetric("session_refreshed", 1.0, "username", username);
-            
-            return newSession;
-        } finally {
-            metricsService.stopApiResponseTimer(timer);
-        }
+        // Create new session (no caching)
+        Map<String, Object> newSession = new HashMap<>();
+        newSession.put("username", username);
+        newSession.put("lastAccess", System.currentTimeMillis());
+        newSession.put("active", true);
+        newSession.put("refreshed", true);
+        
+        metricsService.recordBusinessMetric("session_refreshed", 1.0, "username", username);
+        
+        return newSession;
     }
 
     /**
@@ -182,18 +148,12 @@ public class AuthService {
     public boolean isUserAuthenticated(String username) {
         logger.debug("Checking authentication status for user: {}", username);
         
-        Timer.Sample timer = metricsService.startApiResponseTimer();
-        try {
-            // In a real application, you would check against a session store or database
-            // For demo purposes, we'll return true if username is not empty
-            boolean isAuthenticated = username != null && !username.trim().isEmpty();
-            
-            metricsService.recordApiCall(true);
-            metricsService.recordBusinessMetric("auth_status_checked", 1.0, "username", username, "authenticated", String.valueOf(isAuthenticated));
-            
-            return isAuthenticated;
-        } finally {
-            metricsService.stopApiResponseTimer(timer);
-        }
+        // In a real application, you would check against a session store or database
+        // For demo purposes, we'll return true if username is not empty
+        boolean isAuthenticated = username != null && !username.trim().isEmpty();
+        
+        metricsService.recordBusinessMetric("auth_status_checked", 1.0, "username", username, "authenticated", String.valueOf(isAuthenticated));
+        
+        return isAuthenticated;
     }
 }

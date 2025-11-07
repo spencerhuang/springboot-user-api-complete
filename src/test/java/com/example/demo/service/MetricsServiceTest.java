@@ -92,27 +92,10 @@ class MetricsServiceTest {
     }
 
     @Test
-    void testStartApiResponseTimer() {
-        // When
-        Timer.Sample sample = metricsService.startApiResponseTimer();
-
-        // Then
-        assertNotNull(sample);
-        assertTrue(sample instanceof Timer.Sample);
-    }
-
-    @Test
-    void testStopApiResponseTimer() {
-        // Given
-        Timer.Sample sample = metricsService.startApiResponseTimer();
-
-        // When
-        metricsService.stopApiResponseTimer(sample);
-
-        // Then
+    void testApiResponseTimerExists() {
+        // Then - verify API response timer is registered (used by MetricsInterceptor)
         Timer apiResponseTimer = simpleMeterRegistry.get("api_response_time").timer();
-        assertEquals(1, apiResponseTimer.count());
-        assertTrue(apiResponseTimer.totalTime(TimeUnit.NANOSECONDS) > 0);
+        assertNotNull(apiResponseTimer);
     }
 
     @Test
@@ -216,18 +199,22 @@ class MetricsServiceTest {
     }
 
     @Test
-    void testMultipleTimerStops() {
-        // Given
-        Timer.Sample sample1 = metricsService.startApiResponseTimer();
-        Timer.Sample sample2 = metricsService.startApiResponseTimer();
-
-        // When
-        metricsService.stopApiResponseTimer(sample1);
-        metricsService.stopApiResponseTimer(sample2);
+    void testApiResponseTimerCanBeUsedDirectly() {
+        // Given - API response timer is now used by MetricsInterceptor
+        Timer apiResponseTimer = simpleMeterRegistry.get("api_response_time").timer();
+        
+        // When - simulate interceptor usage
+        Timer.Sample sample = Timer.start(simpleMeterRegistry);
+        try {
+            Thread.sleep(10); // Simulate some processing time
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        sample.stop(apiResponseTimer);
 
         // Then
-        Timer apiResponseTimer = simpleMeterRegistry.get("api_response_time").timer();
-        assertEquals(2, apiResponseTimer.count());
+        assertEquals(1, apiResponseTimer.count());
+        assertTrue(apiResponseTimer.totalTime(TimeUnit.NANOSECONDS) > 0);
     }
 
     @Test
